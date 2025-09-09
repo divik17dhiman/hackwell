@@ -1,14 +1,18 @@
 "use client";
 
 import React from 'react';
-import { 
-  Eye, 
-  Heart, 
-  Brain, 
-  Activity, 
-  Users, 
-  Zap, 
-  Target, 
+import Link from 'next/link';
+import { Lora } from 'next/font/google';
+import { Sansita } from 'next/font/google';
+const lora = Lora({ subsets: ['latin'], weight: ['400', '700'] });
+import {
+  Eye,
+  Heart,
+  Brain,
+  Activity,
+  Users,
+  Zap,
+  Target,
   Globe,
   ArrowRight,
   Play
@@ -30,7 +34,7 @@ export default function Homepage() {
     {
       score: 93,
       title: "Heart Rate",
-      subtitle: "Excellent", 
+      subtitle: "Excellent",
       image: "https://images.pexels.com/photos/3768997/pexels-photo-3768997.jpeg?auto=compress&cs=tinysrgb&w=400&h=300&fit=crop"
     },
     {
@@ -41,7 +45,7 @@ export default function Homepage() {
     }
   ];
 
-    const features = [
+  const features = [
     {
       icon: <Eye className="w-6 h-6" />,
       title: "AI-Powered Health Analysis",
@@ -49,7 +53,7 @@ export default function Homepage() {
     },
     {
       icon: <Brain className="w-6 h-6" />,
-      title: "Predictive Health Intelligence", 
+      title: "Predictive Health Intelligence",
       description: "Machine learning models predict potential health risks before they become problems, enabling proactive care."
     },
     {
@@ -73,50 +77,50 @@ export default function Homepage() {
             <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center">
               <Heart className="w-5 h-5 text-blue-900" />
             </div>
-            <span className="text-white font-semibold text-lg">HealthFlow</span>
-          </div>
-          
-          <div className="hidden md:flex items-center space-x-8 text-white/90">
-            <a href="#" className="hover:text-white transition-colors">Platform</a>
-            <a href="#" className="hover:text-white transition-colors">Research</a>
-            <a href="#" className="hover:text-white transition-colors">About</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <span className={lora.className + " text-white text-lg"}>CareSight</span>
           </div>
 
-          <Button onClick={() => {router.push('/dashboard')}} className="bg-white text-gray-900 hover:bg-gray-100">
+          <div className="hidden md:flex items-center space-x-8 text-white/90">
+            <Link href="/dashboard" className="hover:text-white transition-colors">Platform</Link>
+            <Link href="#" className="hover:text-white transition-colors">Research</Link>
+            <Link href="#" className="hover:text-white transition-colors">About</Link>
+            <Link href="#" className="hover:text-white transition-colors">Contact</Link>
+          </div>
+
+          <Button onClick={() => { router.push('/dashboard') }} className="bg-white text-gray-900 hover:bg-gray-100">
             Get Started
           </Button>
         </div>
       </nav>
 
-            {/* Hero Section */}
+      {/* Hero Section */}
       <div className="relative h-screen flex items-center">
         {/* Background Image */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.pexels.com/photos/3768131/pexels-photo-3768131.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&fit=crop')`
           }}
         />
-        
+
         <div className="relative z-10 max-w-7xl mx-auto px-6">
-          <div className="max-w-2xl">
-            <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
+          <div className={"max-w-3xl"}>
+            <h1 className={`text-6xl md:text-7xl font-semibold text-white mb-6 opacity-60 leading-tight}`}>
               See Beyond.
               <br />
-              Unlock Your Health
+              Unlock Your Health.
             </h1>
-            
-            <p className="text-xl text-white/90 mb-8 leading-relaxed">
-              Your body holds the answers — we help you see them.
+
+            <p className="text-xl text-white opacity-60 mb-8 leading-relaxed">
+              The Power of Care, Guided by Insight.
             </p>
 
             <div className="flex items-center space-x-4">
-              <Button size="lg" className="bg-white text-gray-900 hover:bg-gray-100 px-8 py-4 text-lg">
+              <Button size="lg" className="bg-white opacity-70 text-gray-900 hover:bg-white hover:opacity-100 px-8 py-4 text-lg">
                 Start Your Journey
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-gray-900 px-8 py-4 text-lg">
+              <Button size="lg" variant="outline" className="bg-white opacity-70 text-gray-900 px-8 py-4 text-lg hover:bg-white hover:opacity-100">
                 <Play className="w-5 h-5 mr-2" />
                 Watch Demo
               </Button>
@@ -176,13 +180,13 @@ export default function Homepage() {
             {healthMetrics.map((metric, index) => (
               <Card key={index} className="overflow-hidden group hover:shadow-xl transition-all duration-300">
                 <div className="relative h-64">
-                  <img 
+                  <img
                     src={metric.image}
                     alt={metric.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  
+
                   {/* Score Badge */}
                   <div className="absolute top-4 left-4">
                     <div className="bg-white rounded-lg px-3 py-2">
@@ -203,7 +207,7 @@ export default function Homepage() {
         </div>
       </section>
 
-            {/* Statistics */}
+      {/* Statistics */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-12">
@@ -232,7 +236,7 @@ export default function Homepage() {
         </div>
       </section>
 
-            {/* Bottom Section */}
+      {/* Bottom Section */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -275,7 +279,7 @@ export default function Homepage() {
         </div>
       </section>
 
-            {/* CTA Section */}
+      {/* CTA Section */}
       <section className="py-24 bg-blue-900">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
@@ -305,14 +309,14 @@ export default function Homepage() {
                 <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
                   <Heart className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-semibold text-lg">HealthFlow</span>
+                <span className="font-semibold text-lg">CareSight</span>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
                 Empowering better health outcomes through advanced analytics and personalized insights.
               </p>
             </div>
 
-                        <div>
+            <div>
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-white transition-colors">Dashboard</a></li>
