@@ -57,46 +57,7 @@ export default function ModelPerformance() {
       </div>
 
       {/* Performance Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Accuracy</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? <Skeleton className="h-8 w-16" /> : `${((metrics?.accuracy ?? 0) * 100).toFixed(1)}%`}
-            </div>
-            <p className="text-xs text-muted-foreground">Overall model accuracy</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Precision</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? <Skeleton className="h-8 w-16" /> : `${((metrics?.precision ?? 0) * 100).toFixed(1)}%`}
-            </div>
-            <p className="text-xs text-muted-foreground">True positive rate</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recall</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {isLoading ? <Skeleton className="h-8 w-16" /> : `${((metrics?.recall ?? 0) * 100).toFixed(1)}%`}
-            </div>
-            <p className="text-xs text-muted-foreground">Sensitivity</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">AUC-ROC</CardTitle>
@@ -104,9 +65,35 @@ export default function ModelPerformance() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? <Skeleton className="h-8 w-16" /> : (metrics?.auc_roc || 0).toFixed(3)}
+              {isLoading ? <Skeleton className="h-8 w-16" /> : (metrics?.model_performance?.auc_roc || 0).toFixed(3)}
             </div>
-            <p className="text-xs text-muted-foreground">Area under curve</p>
+            <p className="text-xs text-muted-foreground">Area under ROC curve</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">AU-PRC</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Skeleton className="h-8 w-16" /> : (metrics?.model_performance?.auprc || 0).toFixed(3)}
+            </div>
+            <p className="text-xs text-muted-foreground">Area under precision-recall curve</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Best Model</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold">
+              {isLoading ? <Skeleton className="h-8 w-24" /> : (metrics?.model_performance?.best_model || 'Unknown')}
+            </div>
+            <p className="text-xs text-muted-foreground">Selected algorithm</p>
           </CardContent>
         </Card>
       </div>
@@ -133,7 +120,7 @@ export default function ModelPerformance() {
                   <YAxis dataKey="feature" type="category" width={80} />
                   <Tooltip />
                   <Bar dataKey="importance" fill="#8884d8">
-                    {metrics.feature_importance.slice(0, 10).map((entry: any, index: number) => (
+                    {metrics.feature_importance.slice(0, 10).map((entry: { feature: string; importance: number }, index: number) => (
                       <Cell key={`cell-${index}`} fill={`hsl(${220 + index * 20}, 70%, 50%)`} />
                     ))}
                   </Bar>
@@ -154,12 +141,12 @@ export default function ModelPerformance() {
           <CardContent>
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
-            ) : metrics?.roc_curve ? (
+            ) : metrics?.model_performance?.roc_curve ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart
-                  data={metrics.roc_curve.fpr.map((fpr: number, index: number) => ({
+                  data={metrics.model_performance.roc_curve.fpr.map((fpr: number, index: number) => ({
                     fpr,
-                    tpr: metrics.roc_curve!.tpr[index],
+                    tpr: metrics.model_performance.roc_curve!.tpr[index],
                   }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -211,7 +198,7 @@ export default function ModelPerformance() {
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
-          ) : metrics?.confusion_matrix ? (
+          ) : metrics?.model_performance?.confusion_matrix ? (
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2 max-w-md mx-auto">
                 <div></div>
@@ -221,9 +208,9 @@ export default function ModelPerformance() {
                   <span className="transform -rotate-90">Actual</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1">
-                  {metrics.confusion_matrix.map((row: number[], i: number) =>
+                  {metrics.model_performance.confusion_matrix.map((row: number[], i: number) =>
                     row.map((value: number, j: number) => {
-                      const maxValue = Math.max(...metrics.confusion_matrix!.flat());
+                      const maxValue = Math.max(...metrics.model_performance.confusion_matrix!.flat());
                       const isCorrect = i === j;
                       return (
                         <div
@@ -262,7 +249,7 @@ export default function ModelPerformance() {
       </Card>
 
       {/* Calibration Plot */}
-      {metrics?.calibration_curve && (
+      {metrics?.calibration && (
         <Card>
           <CardHeader>
             <CardTitle>Calibration Plot</CardTitle>
@@ -271,9 +258,9 @@ export default function ModelPerformance() {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart
-                data={metrics.calibration_curve.mean_predicted_value.map((pred: number, index: number) => ({
+                data={metrics.calibration.mean_predicted_value.map((pred: number, index: number) => ({
                   predicted: pred,
-                  observed: metrics.calibration_curve!.fraction_of_positives[index],
+                  observed: metrics.calibration!.fraction_of_positives[index],
                 }))}
               >
                 <CartesianGrid strokeDasharray="3 3" />
@@ -323,16 +310,16 @@ export default function ModelPerformance() {
                 <h4 className="font-medium mb-2">Performance Metrics</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>F1 Score:</span>
-                    <Badge variant="outline">{(metrics.f1_score * 100).toFixed(1)}%</Badge>
-                  </div>
-                  <div className="flex justify-between">
                     <span>AUC-ROC:</span>
-                    <Badge variant="outline">{metrics.auc_roc.toFixed(3)}</Badge>
+                    <Badge variant="outline">{(metrics.model_performance?.auc_roc ?? 0).toFixed(3)}</Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>Accuracy:</span>
-                    <Badge variant="outline">{(metrics.accuracy * 100).toFixed(1)}%</Badge>
+                    <span>AU-PRC:</span>
+                    <Badge variant="outline">{(metrics.model_performance?.auprc ?? 0).toFixed(3)}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Best Model:</span>
+                    <Badge variant="outline">{metrics.model_performance?.best_model ?? 'Unknown'}</Badge>
                   </div>
                 </div>
               </div>
@@ -341,13 +328,13 @@ export default function ModelPerformance() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Model Health:</span>
-                    <Badge className={metrics.auc_roc > 0.8 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                      {metrics.auc_roc > 0.8 ? 'Excellent' : 'Good'}
+                    <Badge className={(metrics.model_performance?.auc_roc ?? 0) > 0.8 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                      {(metrics.model_performance?.auc_roc ?? 0) > 0.8 ? 'Excellent' : 'Good'}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Features Used:</span>
-                    <Badge variant="outline">{metrics.feature_importance.length}</Badge>
+                    <Badge variant="outline">{metrics.feature_importance?.length ?? 0}</Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Last Updated:</span>

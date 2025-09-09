@@ -13,13 +13,38 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (roc_auc_score, average_precision_score, 
                            confusion_matrix, classification_report,
-                           roc_curve, precision_recall_curve, calibration_curve)
+                           roc_curve, precision_recall_curve)
+from sklearn.calibration import calibration_curve
 import lightgbm as lgb
 import shap
+import os
 
 # API Framework
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import json
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON encoder for NumPy data types and Pandas objects"""
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        if isinstance(obj, (datetime.datetime, datetime.date)):
+            return obj.isoformat()
+        if hasattr(obj, 'isoformat'):  # Handle other datetime-like objects
+            return obj.isoformat()
+        if hasattr(obj, 'item'):
+            return obj.item()
+        return super(NumpyEncoder, self).default(obj)
 
 # Plotting
 import matplotlib.pyplot as plt
@@ -481,10 +506,14 @@ class HealthcareRiskPredictor:
         # Store comprehensive metrics for the best model
         self.model_metrics = {
             'best_model': best_model_name,
-            'auc': model_results[best_model_name]['auc'],
-            'auprc': model_results[best_model_name]['auprc'],
-            'confusion_matrix': model_results[best_model_name]['confusion_matrix'],
-            'all_results': model_results
+            'auc': float(model_results[best_model_name]['auc']),
+            'auprc': float(model_results[best_model_name]['auprc']),
+            'confusion_matrix': model_results[best_model_name]['confusion_matrix'].tolist(),
+            'all_results': {name: {
+                'auc': float(results['auc']),
+                'auprc': float(results['auprc']),
+                'confusion_matrix': results['confusion_matrix'].tolist()
+            } for name, results in model_results.items()}
         }
         
         # Calculate additional metrics
@@ -495,8 +524,8 @@ class HealthcareRiskPredictor:
             y_test, y_test_pred, n_bins=10
         )
         self.model_metrics['calibration'] = {
-            'fraction_of_positives': fraction_of_positives,
-            'mean_predicted_value': mean_predicted_value
+            'fraction_of_positives': fraction_of_positives.tolist(),
+            'mean_predicted_value': mean_predicted_value.tolist()
         }
         
         # Feature importance (for tree-based models)
@@ -591,6 +620,9 @@ class HealthcareRiskPredictor:
         
         feature_vector = np.array(feature_vector).reshape(1, -1)
         
+        # Keep unscaled version for tree-based SHAP explainers
+        feature_vector_unscaled = feature_vector.copy()
+        
         # Scale features
         if hasattr(self, 'scaler') and self.scaler is not None:
             if type(self.model).__name__ == 'LogisticRegression':
@@ -608,8 +640,11 @@ class HealthcareRiskPredictor:
         else:
             risk_category = "High"
         
-        # Generate explanations
-        explanations = self._generate_explanations(feature_vector, patient_features)
+        # Generate explanations (use appropriate feature vector based on model type)
+        if type(self.model).__name__ == 'LogisticRegression':
+            explanations = self._generate_explanations(feature_vector, patient_features)
+        else:
+            explanations = self._generate_explanations(feature_vector_unscaled, patient_features)
         
         # Get recent trends
         trends = self._analyze_patient_trends(patient_data)
@@ -636,17 +671,51 @@ class HealthcareRiskPredictor:
             if self.shap_explainer is None:
                 return self._generate_rule_based_explanations(patient_features)
             
+            # Ensure feature_vector is properly shaped and contains only numeric data
+            if feature_vector.ndim != 2:
+                feature_vector = feature_vector.reshape(1, -1)
+            
+            # Ensure we have the right number of features
+            if feature_vector.shape[1] != len(self.feature_names):
+                print(f"Feature mismatch: expected {len(self.feature_names)}, got {feature_vector.shape[1]}")
+                return self._generate_rule_based_explanations(patient_features)
+            
+            # Convert to float and handle any NaN values
+            feature_vector_clean = np.array(feature_vector, dtype=np.float32)
+            feature_vector_clean = np.nan_to_num(feature_vector_clean, nan=0.0, posinf=0.0, neginf=0.0)
+            
             # Calculate SHAP values
-            shap_values = self.shap_explainer.shap_values(feature_vector)
+            shap_values = self.shap_explainer.shap_values(feature_vector_clean)
             
             if isinstance(shap_values, list):
                 shap_values = shap_values[1]  # For binary classification
             
+            # Ensure shap_values is 1D
+            if shap_values.ndim > 1:
+                shap_values = shap_values.flatten()
+            
+            # Validate array lengths before creating DataFrame
+            feature_values = feature_vector_clean[0]
+            
+            # Ensure all arrays have the same length
+            min_length = min(len(self.feature_names), len(shap_values), len(feature_values))
+            
+            if min_length != len(self.feature_names) or min_length != len(shap_values) or min_length != len(feature_values):
+                print(f"Array length mismatch: features={len(self.feature_names)}, shap={len(shap_values)}, values={len(feature_values)}")
+                # Truncate or pad to match the minimum length
+                feature_names_adj = self.feature_names[:min_length]
+                shap_values_adj = shap_values[:min_length]
+                feature_values_adj = feature_values[:min_length]
+            else:
+                feature_names_adj = self.feature_names
+                shap_values_adj = shap_values
+                feature_values_adj = feature_values
+            
             # Get top contributing features
             shap_df = pd.DataFrame({
-                'feature': self.feature_names,
-                'shap_value': shap_values[0],
-                'feature_value': feature_vector[0]
+                'feature': feature_names_adj,
+                'shap_value': shap_values_adj,
+                'feature_value': feature_values_adj
             })
             
             # Sort by absolute SHAP value
@@ -661,8 +730,8 @@ class HealthcareRiskPredictor:
                 explanations.append({
                     'factor': feature_readable,
                     'impact': direction + " risk",
-                    'magnitude': abs(row['shap_value']),
-                    'value': row['feature_value']
+                    'magnitude': float(abs(row['shap_value'])),
+                    'value': float(row['feature_value'])
                 })
             
             return explanations
@@ -976,9 +1045,9 @@ class HealthcareRiskPredictor:
         report = {
             'model_performance': {
                 'best_model': self.model_metrics['best_model'],
-                'auc_roc': self.model_metrics['auc'],
-                'auprc': self.model_metrics['auprc'],
-                'confusion_matrix': self.model_metrics['confusion_matrix'].tolist()
+                'auc_roc': float(self.model_metrics['auc']),
+                'auprc': float(self.model_metrics['auprc']),
+                'confusion_matrix': self.model_metrics['confusion_matrix'] if isinstance(self.model_metrics['confusion_matrix'], list) else self.model_metrics['confusion_matrix'].tolist()
             },
             'feature_importance': None,
             'calibration': self.model_metrics.get('calibration'),
@@ -986,7 +1055,11 @@ class HealthcareRiskPredictor:
         }
         
         if 'feature_importance' in self.model_metrics:
-            report['feature_importance'] = self.model_metrics['feature_importance'].to_dict('records')
+            # Convert DataFrame to JSON-serializable format
+            if hasattr(self.model_metrics['feature_importance'], 'to_dict'):
+                report['feature_importance'] = self.model_metrics['feature_importance'].to_dict('records')
+            else:
+                report['feature_importance'] = self.model_metrics['feature_importance']
         
         return report
     
@@ -1031,6 +1104,10 @@ class HealthcareAPI:
         CORS(self.app)
         self._setup_routes()
     
+    def _safe_jsonify(self, data):
+        """Convert data to JSON-safe format and return jsonify response"""
+        return jsonify(json.loads(json.dumps(data, cls=NumpyEncoder)))
+    
     def _setup_routes(self):
         """Setup API routes"""
         
@@ -1042,7 +1119,7 @@ class HealthcareAPI:
         def predict_patient(patient_id):
             try:
                 result = self.predictor.predict_patient_risk(patient_id)
-                return jsonify(result)
+                return self._safe_jsonify(result)
             except Exception as e:
                 return jsonify({'error': str(e)}), 400
         
@@ -1050,7 +1127,7 @@ class HealthcareAPI:
         def cohort_summary():
             try:
                 result = self.predictor.get_cohort_risk_summary()
-                return jsonify(result)
+                return self._safe_jsonify(result)
             except Exception as e:
                 return jsonify({'error': str(e)}), 400
         
@@ -1058,7 +1135,7 @@ class HealthcareAPI:
         def model_metrics():
             try:
                 result = self.predictor.generate_model_report()
-                return jsonify(result)
+                return self._safe_jsonify(result)
             except Exception as e:
                 return jsonify({'error': str(e)}), 400
         
@@ -1077,7 +1154,7 @@ class HealthcareAPI:
                     self.predictor.processed_data['patient_id'] == patient_id
                 ].tail(30).to_dict('records')
                 
-                return jsonify({
+                return self._safe_jsonify({
                     'patient_id': patient_id,
                     'recent_data': patient_data,
                     'record_count': len(patient_data)
@@ -1097,6 +1174,9 @@ def main():
     print("🏥 Healthcare Risk Prediction System")
     print("=" * 50)
     
+    # Path to the saved model
+    model_path = 'trained_healthcare_model.pkl'
+
     # Initialize the system
     predictor = HealthcareRiskPredictor(
         data_path='synthetic_healthcare_dataset.csv',
@@ -1105,71 +1185,34 @@ def main():
     )
     
     try:
-        # Step 1: Load and validate data
+        # Step 1 & 2 are always needed to have data ready for predictions
         predictor.load_data()
-        
-        # Step 2: Preprocess data
         predictor.preprocess_data()
         
-        # Step 3: Prepare ML dataset
-        ml_dataset = predictor.prepare_ml_dataset(lookback_days=30)
-        
-        # Step 4: Train models
-        metrics = predictor.train_models(ml_dataset)
-        
-        # Step 5: Save the trained model
-        predictor.save_model('trained_healthcare_model.pkl')
-        
-        # Step 6: Generate model report
-        report = predictor.generate_model_report()
-        print("\n📊 Model Performance Report:")
-        print(f"Best Model: {report['model_performance']['best_model']}")
-        print(f"AUC-ROC: {report['model_performance']['auc_roc']:.4f}")
-        print(f"AUPRC: {report['model_performance']['auprc']:.4f}")
-        
-        # Step 7: Test predictions on sample patients
-        print("\n🔮 Sample Predictions:")
-        sample_patients = predictor.processed_data['patient_id'].unique()[:5]
-        
-        for patient_id in sample_patients:
-            try:
-                prediction = predictor.predict_patient_risk(patient_id)
-                print(f"\nPatient {patient_id}:")
-                print(f"  Risk: {prediction['risk_probability']:.3f} ({prediction['risk_category']})")
-                print(f"  Top factor: {prediction['explanations'][0]['factor'] if prediction['explanations'] else 'N/A'}")
-            except Exception as e:
-                print(f"  Error: {e}")
-        
-        # Step 8: Generate cohort summary
-        print("\n👥 Cohort Risk Summary:")
-        cohort_summary = predictor.get_cohort_risk_summary()
-        stats = cohort_summary['summary_stats']
-        print(f"Total Patients: {stats['total_patients']}")
-        print(f"High Risk: {stats['high_risk_count']} ({stats['high_risk_count']/stats['total_patients']:.1%})")
-        print(f"Medium Risk: {stats['medium_risk_count']} ({stats['medium_risk_count']/stats['total_patients']:.1%})")
-        print(f"Low Risk: {stats['low_risk_count']} ({stats['low_risk_count']/stats['total_patients']:.1%})")
-        print(f"Average Risk Score: {stats['average_risk']:.3f}")
-        
-        # Step 9: Start API server
+        # Check if a trained model already exists
+        if os.path.exists(model_path):
+            print(f"\nFound existing model at '{model_path}'. Loading model...")
+            predictor.load_model(model_path)
+            print("✓ Model loaded successfully.")
+        else:
+            print(f"\nNo existing model found. Starting training process...")
+            # Step 3: Prepare ML dataset
+            ml_dataset = predictor.prepare_ml_dataset(lookback_days=30)
+            
+            # Step 4: Train models
+            predictor.train_models(ml_dataset)
+            
+            # Step 5: Save the newly trained model
+            predictor.save_model(model_path)
+
+        # Step 6: Start the API server with the loaded or newly trained model
         print("\n🌐 Starting API server...")
         api = HealthcareAPI(predictor)
         
-        print("\nAPI Endpoints:")
-        print("- GET /health - Health check")
-        print("- GET /predict/<patient_id> - Individual patient prediction")
-        print("- GET /cohort_summary - Cohort risk summary")
-        print("- GET /model_metrics - Model performance metrics")
-        print("- GET /patients - List all patients")
-        print("- GET /patient_details/<patient_id> - Patient historical data")
-        
-        # Uncomment to start the API server
-        # api.run(host='0.0.0.0', port=5000, debug=False)
-        
+        # Your API endpoints will be available here
+        api.run(host='0.0.0.0', port=5001, debug=False)
         print("\n✅ Healthcare Risk Prediction System is ready!")
-        print("📝 Files generated:")
-        print("   - trained_healthcare_model.pkl (saved model)")
-        print("   - API ready to serve predictions")
-        
+
     except Exception as e:
         print(f"\n❌ Error in main execution: {str(e)}")
         import traceback

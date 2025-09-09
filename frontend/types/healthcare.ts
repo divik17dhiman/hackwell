@@ -62,24 +62,25 @@ export interface CohortSummary {
 }
 
 export interface ModelMetrics {
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1_score: number;
-  auc_roc: number;
-  confusion_matrix: number[][];
+  model_performance: {
+    best_model: string;
+    auc_roc: number;
+    auprc: number;
+    confusion_matrix: number[][];
+  };
   feature_importance: Array<{
     feature: string;
     importance: number;
-  }>;
-  roc_curve?: {
-    fpr: number[];
-    tpr: number[];
-    thresholds: number[];
-  };
-  calibration_curve?: {
+  }> | null;
+  calibration?: {
     mean_predicted_value: number[];
     fraction_of_positives: number[];
+  };
+  clinical_interpretation: {
+    model_reliability: string;
+    recommended_use: string[];
+    limitations: string[];
+    clinical_value: string[];
   };
 }
 
