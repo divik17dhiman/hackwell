@@ -83,7 +83,7 @@ export default function Homepage() {
             <a href="#" className="hover:text-white transition-colors">Contact</a>
           </div>
 
-          <Button onClick={() => {router.push('/dashboard1')}} className="bg-white text-gray-900 hover:bg-gray-100">
+          <Button onClick={() => {router.push('/dashboard')}} className="bg-white text-gray-900 hover:bg-gray-100">
             Get Started
           </Button>
         </div>
