@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Nunito } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -28,6 +29,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${nunito.variable} antialiased font-inter`}
       >
+        <Link href="/">home</Link> |
+        <Link href="/dashboard">dashboard</Link> |  
+         <Link href="/patient">patient</Link>
         {children}
       </body>
     </html>

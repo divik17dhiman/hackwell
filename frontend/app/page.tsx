@@ -409,7 +409,7 @@ export default function Homepage() {
               </p>
             </div>
 
-                        <div>
+            <div>
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-white transition-colors">Dashboard</a></li>
