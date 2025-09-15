@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import RiskBadgeComponent from '@/components/Dashboard/RiskBadge';
+import RiskBadge from '@/components/Dashboard/RiskBadge';
 import EvidenceCard from '@/components/Dashboard/EvidenceCard';
 import RecommendationCard from '@/components/Dashboard/RecommendationCard';
 import TimelineChart from '@/components/Dashboard/TimelineChart';
@@ -20,9 +20,12 @@ import {
   User, 
   FileText, 
   MessageCircle, 
+  Settings, 
   Menu,
   BookOpen,
+  Apple,
   Pill,
+  Calendar,
   Stethoscope,
   Send,
   Home,
@@ -302,7 +305,7 @@ export default function DashboardPage() {
                   <h3 className="text-xl font-semibold text-gray-900 mb-6">Risk Assessment Overview</h3>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {mockPatient.conditions.map((condition, index) => (
-                      <RiskBadgeComponent
+                      <RiskBadge
                         key={index}
                         condition={condition.name}
                         score={condition.score}
@@ -330,7 +333,7 @@ export default function DashboardPage() {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {mockPatient.conditions.map((condition, index) => (
-                    <RiskBadgeComponent
+                    <RiskBadge
                       key={index}
                       condition={condition.name}
                       score={condition.score}
@@ -380,7 +383,7 @@ export default function DashboardPage() {
                           <Badge className="bg-amber-100 text-amber-800 text-xs">+8 points</Badge>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                          <span className="text-sm text-gray-700">BMI 30+</span>
+                          <span className="text-sm text-gray-700">BMI 30</span>
                           <Badge className="bg-amber-100 text-amber-800 text-xs">+12 points</Badge>
                         </div>
                       </div>
